@@ -1,0 +1,106 @@
+---
+title: "Mathstat final project"
+author: "Xu Yinqiu"
+date: "2018年5月12日"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+What we try to do is using dataset from Movielens to rank movies and finally obtain the list.
+
+
+Dataset:Movielens latest datasets(small) which includes 100,000 ratings an 1,300 tag applications applied to 9,000 movies by 700 users. lastest updated 10/2016
+P.S.website link:https://grouplens.org/datasets/movielens/
+
+Following is the codes and process of constructing the ranking list.
+
+Firstly, the key idea to construct the list is ranking the lower bound of the confidence interval of p. p denotes the proportion of thumbs up evaluated by users or we call it applause prob for each movie.
+Because the rating by users in Movielens dataset ranging from 1.0 to 5.0 whose step is 0.5, we devided the rating into two parts which is higher than or equal to 3 and lower than 3. So we transform the rating from a multinomial variable to a binomial variable.
+p is the ratingnum which is higher than 3/the total ratingnum.
+
+
+Secondly, codes.
+read ratings data
+```{r}
+mydata <- read.table("C:/Users/WR/Desktop/tough semester/mathstat/final project/ml-latest-small/ratings.csv",header=TRUE,sep=',')
+```
+count rating>=3 numbers for each movie
+(A is a dataframe with two columns, one is MovieId and the other is the number of rating>=3(rating.x) for each movie.
+B is a dataframe with two columns, one is MovieId and the other is the total number of ratings(rating.y) for each movie)
+```{r}
+A=aggregate(x=mydata[c('rating')],by=list(mydata$movieId),FUN = function(rating)sum(rating>=3))
+B=aggregate(x=mydata[c('rating')],by=list(mydata$movieId),FUN = 
+function(rating)sum(rating>=1))
+```
+From the outcome we can see there is only 9066 movies.It doesn't matter. We will deal with this 9066 movies.
+Calculate the 95% confidence interval of p for each movie
+(functions will be showed in the paper and ppt)
+(Capital C denotes the dataframe that merges A and B by movieid.
+Then we use rating.x/rating.y for each movie to get the observed applause prob for each movie.
+Because the confidence level is 95%, the z value is 1.95996.
+By the functions, we can calculate both the lower and upper bound of 95% CI.
+lowerlim denotes lower bound. upperlim denotes upper bound.
+And we get CI.)
+```{r}
+C <- merge(A,B,by = "Group.1")
+C$p = C$rating.x/C$rating.y
+C$q = 1-C$p
+z = 1.95996
+C$lowerlim = C$p - z*sqrt(C$p*C$q / C$rating.y)
+C$upperlim = C$p + z*sqrt(C$p*C$q / C$rating.y)
+```
+Rank movies by their lower bound of 95% CI
+(ranking denotes the first ranking we get without considering number of viewers)
+```{r}
+ranking = C[order(C$lowerlim,decreasing = T),]
+```
+We can see a lot of movies have less than 50 viewers. Some only have 1 or 2 ratings. Because the sample size to too small. the outcome is not believable. Restricted by the dataset, we have to delete those movies.
+Before we do this, we shoule read movies.csv to match movieid with their names and genres.
+We read mydata2 as movies' name and genres.And merge ranking and mydata2,finally we get 4674 movies because of incomplete movies.csv
+```{r}
+mydata2 <- read.table("C:/Users/WR/Desktop/tough semester/mathstat/final project/ml-latest-small/movies.txt",header=TRUE,sep='\t')
+install.packages("reshape")
+library(reshape)
+names(ranking)[1:3] <- c("movieId","likes","ratingnum")
+rankings <- merge(ranking,mydata2,by='movieId')
+```
+Rank movies by their lower bound of 95% CI
+(R denotes the first ranking we get without considering number of viewers but with their name and genres infomation)
+And we will get a top50 list of these movie denoted as list1(without considering number of viewers)
+```{r}
+library(plyr)
+R <- arrange(rankings,rankings[,6],decreasing = T)
+list1 <- R[c(1:50),]
+```
+we can see all the top50 movies having very small sample of ratings. So we will delete these movies in R by getting a sublist from R denoted as R2.
+And we can get a top50 list from R2.
+(R2 denotes ranking fo all those movies considering number of viewers.
+list2 denotes top50 from R2)
+```{r}
+R2 <- R[which(R$ratingnum>=50),]
+list2 <- R2[c(1:50),]
+```
+list2 is the ranking list we finally get.
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
